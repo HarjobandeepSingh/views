@@ -4,27 +4,38 @@ import TrackLog from '@/app/models/TrackLog';
 import dbConnect from '@/lib/mongodb';
 import { getKeywordMetrics } from '../test-metrics/route';
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   try {
     await dbConnect();
     
     // Get all active tasks
     const activeTasks = await Task.find({ status: 'active' });
+
+    if (!activeTasks || activeTasks.length === 0) {
+      return NextResponse.json({ message: 'No active tasks found' }, { status: 200 });
+    }
     
     // Process each task
     const results = await Promise.all(
       activeTasks.map(async (task) => {
         try {
-          const metrics = await getKeywordMetrics(task.keyword);
-          
-          // Create log entry directly
+          // Split keywords and process each one
+          const keywords = task.keyword.split(',').map(k => k.trim());
+          const keywordMetrics = await Promise.all(
+            keywords.map(async (keyword) => {
+              const metrics = await getKeywordMetrics(keyword);
+              return {
+                keyword,
+                metrics
+              };
+            })
+          );
+
+          // Create log entry
           await TrackLog.create({
             taskId: task.id,
             date: new Date(),
-            keywordMetrics: [{
-              keyword: task.keyword,
-              metrics
-            }]
+            keywordMetrics
           });
 
           return {
@@ -33,6 +44,7 @@ export async function POST(request: Request) {
             success: true
           };
         } catch (error) {
+          console.error(`Error processing task ${task.id}:`, error);
           return {
             taskId: task.id,
             keyword: task.keyword,
@@ -43,7 +55,11 @@ export async function POST(request: Request) {
       })
     );
 
-    return NextResponse.json({ results });
+    return NextResponse.json({
+      message: 'Batch processing completed',
+      processed: results.length,
+      results
+    });
   } catch (error) {
     console.error('Error in batch metrics:', error);
     return NextResponse.json(

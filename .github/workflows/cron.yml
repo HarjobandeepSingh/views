@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Trigger Batch Metrics API
         run: |
-          response=$(curl -s -w "\n%{http_code}" -X POST "https://views-production-88eb.up.railway.app/api/batch-metrics")
+          response=$(curl -s -w "\n%{http_code}" -X GET "https://views-production-88eb.up.railway.app/api/batch-metrics")
           status_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
           
