@@ -1,0 +1,27 @@
+name: Daily Metrics Tracking
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # Runs at midnight every day
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  trigger-metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Batch Metrics API
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST "https://views-production-88eb.up.railway.app/api/batch-metrics")
+          status_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response: $body"
+          echo "Status code: $status_code"
+          
+          if [ "$status_code" -ne 200 ]; then
+            echo "Error: API call failed"
+            exit 1
+          fi
+      - name: Log Status
+        if: always()
+        run: echo "Metrics tracking completed at $(date)" 
