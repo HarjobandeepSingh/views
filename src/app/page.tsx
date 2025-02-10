@@ -1,12 +1,15 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { KeywordPDF } from '@/components/KeywordPDF';
 import { Range } from 'react-range';
 import GiphyResults from '@/components/GiphyResults';
+import { PlusIcon, ChartBarIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import AddTaskModal from '@/components/AddTaskModal';
+import ViewInsightsModal from '@/components/ViewInsightsModal';
 
 // Add new type for search modes
-type SearchMode = 'single' | 'bulk';
+type SearchMode = 'single' | 'bulk' | 'track';
 
 // Add new type for sort options
 type SortOption = 'views' | 'gifs' | 'difficulty' | 'cpm';
@@ -22,6 +25,30 @@ interface KeywordResult {
   totalGifs: number;
   formattedViews: string;
   formattedGifs: string;
+}
+
+// Add new interface for tracked keywords
+interface TrackedKeyword {
+  id: string;
+  taskName: string;
+  keyword: string;
+  dateAdded: string;
+  lastChecked: string;
+  status: 'active' | 'paused';
+}
+
+interface TaskInsights {
+  id: string;
+  taskName: string;
+  keyword: string;
+  dateAdded: string;
+  lastChecked: string;
+  status: string;
+  // Add any additional metrics you want to show
+  totalViews?: number;
+  totalGifs?: number;
+  difficulty?: number;
+  cpc?: number;
 }
 
 const SkeletonLoader = () => (
@@ -66,6 +93,21 @@ const SkeletonLoader = () => (
   </>
 );
 
+// Helper function for date formatting
+const formatDate = (dateString: string) => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'N/A';
+  }
+};
+
 export default function Home() {
   const [searchMode, setSearchMode] = useState<SearchMode>('single');
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,6 +122,28 @@ export default function Home() {
   const [difficultyRange, setDifficultyRange] = useState<[number, number]>([0, 100]);
   const [progress, setProgress] = useState(0);
   const [totalKeywords, setTotalKeywords] = useState(0);
+  const [trackedKeywords, setTrackedKeywords] = useState<TrackedKeyword[]>([
+    // Sample data - replace with actual data later
+    {
+      id: '1',
+      taskName: 'Happy Cats',
+      keyword: 'happy cats',
+      dateAdded: '2024-02-20',
+      lastChecked: '2024-02-21',
+      status: 'active'
+    },
+    {
+      id: '2',
+      taskName: 'Funny Dogs',
+      keyword: 'funny dogs',
+      dateAdded: '2024-02-19',
+      lastChecked: '2024-02-21',
+      status: 'paused'
+    }
+  ]);
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<TaskInsights | null>(null);
+  const [isInsightsModalOpen, setIsInsightsModalOpen] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -305,6 +369,109 @@ export default function Home() {
     </div>
   );
 
+  // Update handleAddNewTask function
+  const handleAddNewTask = async (taskName: string, personName: string, keywords: string) => {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          taskName,
+          personName,
+          keywords
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create task');
+      }
+
+      // Add the new task to the tracked keywords state
+      setTrackedKeywords(prev => [...prev, {
+        id: data.task.id,
+        taskName: data.task.taskName,
+        keyword: data.task.keywords,
+        dateAdded: formatDate(data.task.dateAdded),
+        lastChecked: formatDate(data.task.lastChecked),
+        status: data.task.status
+      }]);
+
+      // Close modal and optionally show success message
+      setIsAddTaskModalOpen(false);
+    } catch (error) {
+      console.error('Error adding task:', error);
+      alert(error instanceof Error ? error.message : 'Failed to create task');
+    }
+  };
+
+  // Add useEffect to load tasks on mount
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await fetch('/api/tasks');
+        if (!response.ok) throw new Error('Failed to fetch tasks');
+        const tasks = await response.json();
+        
+        const formattedTasks = tasks.map((task: any) => ({
+          id: task._id,
+          taskName: task.taskName,
+          keyword: task.keywords,
+          dateAdded: formatDate(task.dateAdded),
+          lastChecked: formatDate(task.lastChecked),
+          status: task.status
+        }));
+        
+        setTrackedKeywords(formattedTasks);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        // Add error handling UI feedback here
+      }
+    };
+
+    fetchTasks();
+  }, []);
+
+  // Add this function at the top of your Home component
+  const handleTestMetrics = async (keyword: string, taskId: string) => {
+    try {
+      const response = await fetch('/api/test-metrics', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ keyword, taskId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch metrics');
+      }
+
+      const data = await response.json();
+      console.log('Metrics saved:', data);
+
+      // Create a formatted message for all keywords
+      const metricsMessage = data.log.keywordMetrics
+        .map(km => (
+          `Keyword: ${km.keyword}\n` +
+          `Views: ${km.metrics.views.toLocaleString()}\n` +
+          `GIFs: ${km.metrics.totalGifs.toLocaleString()}\n` +
+          `Difficulty: ${km.metrics.difficulty}%\n` +
+          `CPC: $${km.metrics.cpc}\n` +
+          `Volume: ${km.metrics.volume}\n`
+        ))
+        .join('\n');
+
+      alert(`Metrics saved:\n\n${metricsMessage}`);
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to fetch metrics');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <main className="container mx-auto px-4 py-8 max-w-6xl">
@@ -347,65 +514,77 @@ export default function Home() {
               >
                 Bulk Search
               </button>
+              <button
+                onClick={() => setSearchMode('track')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  searchMode === 'track'
+                    ? 'bg-white shadow text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Track
+              </button>
             </div>
           </div>
 
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="flex gap-3">
-              {searchMode === 'single' ? (
-                <>
+          {searchMode !== 'track' && (
+            <form onSubmit={handleSearch} className="space-y-4">
+              <div className="flex gap-3">
+                {searchMode === 'single' ? (
+                  <>
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search GIPHY keywords..."
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm text-gray-900"
+                      />
+                    </div>
+                    <div className="w-36">
+                      <select
+                        value={limit}
+                        onChange={(e) => setLimit(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 shadow-sm bg-white text-gray-900"
+                      >
+                        <option value="5">5 results</option>
+                        <option value="10">10 results</option>
+                        <option value="20">20 results</option>
+                        <option value="50">50 results</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
                   <div className="flex-1">
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search GIPHY keywords..."
+                    <textarea
+                      value={bulkKeywords}
+                      onChange={(e) => setBulkKeywords(e.target.value)}
+                      placeholder="Enter keywords separated by commas (e.g., hello, why, what)..."
+                      rows={3}
                       className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm text-gray-900"
                     />
                   </div>
-                  <div className="w-36">
-                    <select
-                      value={limit}
-                      onChange={(e) => setLimit(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-lg border border-gray-300 shadow-sm bg-white text-gray-900"
-                    >
-                      <option value="5">5 results</option>
-                      <option value="10">10 results</option>
-                      <option value="20">20 results</option>
-                      <option value="50">50 results</option>
-                    </select>
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1">
-                  <textarea
-                    value={bulkKeywords}
-                    onChange={(e) => setBulkKeywords(e.target.value)}
-                    placeholder="Enter keywords separated by commas (e.g., hello, why, what)..."
-                    rows={3}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm text-gray-900"
-                  />
-                </div>
-              )}
-              <button
-                type="submit"
-                className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium h-fit"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <span className="flex items-center">
-                    <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Searching...
-                  </span>
-                ) : (
-                  'Search'
                 )}
-              </button>
-            </div>
-          </form>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium h-fit"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Searching...
+                    </span>
+                  ) : (
+                    'Search'
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {searchMode === 'bulk' && isLoading && totalKeywords > 0 && (
@@ -448,7 +627,110 @@ export default function Home() {
             </>
           )
         )}
+
+        {/* Track Section */}
+        {searchMode === 'track' && (
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Tracked Keywords</h2>
+              <button
+                onClick={() => setIsAddTaskModalOpen(true)}
+                className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Add New Task
+              </button>
+            </div>
+
+            {/* Task List */}
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Task Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Keyword
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date Added
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Last Checked
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {trackedKeywords.map((task) => (
+                    <tr key={task.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {task.taskName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {task.keyword}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {task.dateAdded}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {task.lastChecked}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          task.status === 'active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {task.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 space-x-2 flex">
+                        <button 
+                          onClick={() => {
+                            setSelectedTask(task);
+                            setIsInsightsModalOpen(true);
+                          }}
+                          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-md hover:bg-indigo-100"
+                        >
+                          <ChartBarIcon className="w-4 h-4 mr-1.5" />
+                          View Insights
+                        </button>
+                        <button
+                          onClick={() => handleTestMetrics(task.keyword, task.id)}
+                          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-md hover:bg-green-100"
+                        >
+                          <ArrowPathIcon className="w-4 h-4 mr-1.5" />
+                          Test Metrics
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </main>
+      <AddTaskModal
+        isOpen={isAddTaskModalOpen}
+        onClose={() => setIsAddTaskModalOpen(false)}
+        onAdd={handleAddNewTask}
+      />
+      <ViewInsightsModal
+        isOpen={isInsightsModalOpen}
+        onClose={() => {
+          setIsInsightsModalOpen(false);
+          setSelectedTask(null);
+        }}
+        task={selectedTask}
+      />
     </div>
   );
 }
