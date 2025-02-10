@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       activeTasks.map(async (task) => {
         try {
           // Split keywords and process each one
-          const keywords = task.keyword.split(',').map(k => k.trim());
+          const keywords = task.keywords.split(',').map(k => k.trim());
           const keywordMetrics = await Promise.all(
             keywords.map(async (keyword) => {
               const metrics = await getKeywordMetrics(keyword);
@@ -40,14 +40,14 @@ export async function GET(request: Request) {
 
           return {
             taskId: task.id,
-            keyword: task.keyword,
+            keyword: task.keywords,
             success: true
           };
         } catch (error) {
           console.error(`Error processing task ${task.id}:`, error);
           return {
             taskId: task.id,
-            keyword: task.keyword,
+            keyword: task.keywords || 'unknown',
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error'
           };
