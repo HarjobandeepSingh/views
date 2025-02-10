@@ -108,6 +108,9 @@ const formatDate = (dateString: string) => {
   }
 };
 
+// Add this constant at the top of your file
+const MAX_KEYWORDS_TO_SHOW = 2;
+
 export default function Home() {
   const [searchMode, setSearchMode] = useState<SearchMode>('single');
   const [searchTerm, setSearchTerm] = useState('');
@@ -684,11 +687,24 @@ export default function Home() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {trackedKeywords.map((task) => (
                     <tr key={task.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {task.taskName}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{task.taskName}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {task.keyword}
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">
+                          {task.keyword.split(',').length > MAX_KEYWORDS_TO_SHOW ? (
+                            <span title={task.keyword}>
+                              {task.keyword
+                                .split(',')
+                                .slice(0, MAX_KEYWORDS_TO_SHOW)
+                                .map(k => k.trim())
+                                .join(', ')}
+                              {' '}... ({task.keyword.split(',').length - MAX_KEYWORDS_TO_SHOW} more)
+                            </span>
+                          ) : (
+                            task.keyword
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {task.dateAdded}
