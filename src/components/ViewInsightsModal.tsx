@@ -112,7 +112,7 @@ export default function ViewInsightsModal({ task, isOpen, onClose }: ViewInsight
                     key={index}
                     className="border rounded-lg overflow-hidden transition-all duration-200 ease-in-out"
                   >
-                    {/* Summary Row - Always Visible */}
+                    {/* Summary Row */}
                     <div 
                       onClick={() => handleRowClick(index)}
                       className="flex items-center justify-between p-4 bg-white hover:bg-gray-50 cursor-pointer"
@@ -131,23 +131,28 @@ export default function ViewInsightsModal({ task, isOpen, onClose }: ViewInsight
                       />
                     </div>
 
-                    {/* Expanded Details */}
+                    {/* Expanded Details - With custom scrollbar */}
                     <div 
-                      className={`transition-all duration-200 ease-in-out
-                        ${expandedIndex === index ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}
+                      className={`transition-all duration-200 ease-in-out overflow-hidden
+                        ${expandedIndex === index ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'}`}
                     >
-                      <div className="p-4 bg-gray-50 space-y-4">
-                        {log.keywordMetrics.map((km, kIndex) => (
-                          <div key={kIndex} className="border-t first:border-t-0 pt-4 first:pt-0">
-                            <p className="font-medium text-black mb-2">{km.keyword}</p>
-                            <div className="grid grid-cols-2 gap-4 text-sm text-black">
-                              <div>Views: {km.metrics.views.toLocaleString()}</div>
-                              <div>GIFs: {km.metrics.totalGifs.toLocaleString()}</div>
-                              <div>Difficulty: {km.metrics.difficulty}%</div>
-                              <div>CPC: ${km.metrics.cpc}</div>
+                      <div className="p-4 bg-gray-50">
+                        <div className="max-h-[300px] overflow-y-auto pr-2 space-y-4
+                          scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100
+                          hover:scrollbar-thumb-gray-400">
+                          {log.keywordMetrics.map((km, kIndex) => (
+                            <div key={kIndex} 
+                              className="border-t first:border-t-0 pt-4 first:pt-0 bg-white rounded-lg p-4 shadow-sm">
+                              <p className="font-medium text-black mb-2">{km.keyword}</p>
+                              <div className="grid grid-cols-2 gap-4 text-sm text-black">
+                                <div>Views: {km.metrics.views.toLocaleString()}</div>
+                                <div>GIFs: {km.metrics.totalGifs.toLocaleString()}</div>
+                                <div>Difficulty: {km.metrics.difficulty}%</div>
+                                <div>CPC: ${km.metrics.cpc}</div>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -9,7 +9,7 @@ const VIEW_COUNT_API_URL = 'https://giphy.com/api/v1/proxy-gif';
 const RATE_LIMIT_DELAY = 50;
 const CONCURRENT_REQUESTS = 10;
 const MAX_GIFS_PER_KEYWORD = 500;
-const SAMPLE_SIZE = 3;
+const SAMPLE_SIZE = 50;
 
 const queue = new PQueue({ concurrency: CONCURRENT_REQUESTS });
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
