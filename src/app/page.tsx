@@ -145,6 +145,20 @@ export default function Home() {
   const [selectedTask, setSelectedTask] = useState<TaskInsights | null>(null);
   const [isInsightsModalOpen, setIsInsightsModalOpen] = useState(false);
 
+  const handleModeChange = (mode: SearchMode) => {
+    // Clear all relevant states based on previous mode
+    setSearchTerm('');
+    setBulkKeywords('');
+    setResults([]);
+    setSelectedKeywords(new Set());
+    setError(null);
+    setProgress(0);
+    setTotalKeywords(0);
+    
+    // Set the new mode
+    setSearchMode(mode);
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -495,7 +509,7 @@ export default function Home() {
           <div className="flex justify-center mb-6">
             <div className="flex items-center bg-gray-100 p-1 rounded-lg">
               <button
-                onClick={() => setSearchMode('single')}
+                onClick={() => handleModeChange('single')}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                   searchMode === 'single'
                     ? 'bg-white shadow text-gray-900'
@@ -505,7 +519,7 @@ export default function Home() {
                 Single Search
               </button>
               <button
-                onClick={() => setSearchMode('bulk')}
+                onClick={() => handleModeChange('bulk')}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                   searchMode === 'bulk'
                     ? 'bg-white shadow text-gray-900'
@@ -515,7 +529,7 @@ export default function Home() {
                 Bulk Search
               </button>
               <button
-                onClick={() => setSearchMode('track')}
+                onClick={() => handleModeChange('track')}
                 className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                   searchMode === 'track'
                     ? 'bg-white shadow text-gray-900'
@@ -702,13 +716,13 @@ export default function Home() {
                           <ChartBarIcon className="w-4 h-4 mr-1.5" />
                           View Insights
                         </button>
-                        <button
+                        {/* <button
                           onClick={() => handleTestMetrics(task.keyword, task.id)}
                           className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 rounded-md hover:bg-green-100"
                         >
                           <ArrowPathIcon className="w-4 h-4 mr-1.5" />
                           Test Metrics
-                        </button>
+                        </button> */}
                       </td>
                     </tr>
                   ))}
