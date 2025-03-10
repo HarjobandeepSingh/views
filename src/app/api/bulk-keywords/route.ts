@@ -37,7 +37,12 @@ async function fetchGifData(keyword: string, offset = 0) {
         limit: 50,
         offset,
       },
-      timeout: 5000,
+      headers: {
+        'Accept': '*/*',
+        'Referer': 'https://giphy.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      },
+      timeout: 15000,
     });
     
     return response.data?.data || [];
@@ -49,12 +54,20 @@ async function fetchGifData(keyword: string, offset = 0) {
 
 async function fetchGifViewCount(giphy_id: string): Promise<number> {
   try {
-    const response = await axios.get(`${VIEW_COUNT_API_URL}/${giphy_id}/view-count/`);
+    const response = await axios.get(`${VIEW_COUNT_API_URL}/${giphy_id}/view-count/`, {
+      headers: {
+        'Accept': '*/*',
+        'Referer': 'https://giphy.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      },
+      timeout: 10000,
+    });
     if (!response.data || typeof response.data.viewCount === 'undefined') {
       return 0;
     }
     return response.data.viewCount;
   } catch (error) {
+    console.error(`Error fetching view count for GIF ${giphy_id}:`, error);
     return 0;
   }
 }
@@ -78,7 +91,7 @@ async function getKeywordMetrics(keyword: string): Promise<{
     // Sample fewer GIFs
     for (const gif of gifs.slice(0, SAMPLE_SIZE)) {
       const viewCount = await queue.add(() => fetchGifViewCount(gif.id));
-      batchViews += viewCount;
+      batchViews += (viewCount || 0);
       sampledGifs++;
     }
     
@@ -143,7 +156,9 @@ export async function GET(request: Request) {
         headers: {
           'Accept': '*/*',
           'Referer': 'https://giphy.com/',
-        }
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
+        cache: 'no-store'
       }
     );
 
